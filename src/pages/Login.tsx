@@ -1,11 +1,12 @@
 
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Building2, Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface LoginProps {
   setIsAuthenticated: (value: boolean) => void;
@@ -19,45 +20,72 @@ const Login = ({ setIsAuthenticated }: LoginProps) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setIsAuthenticated(true);
+        navigate("/");
+      }
+    };
+    checkSession();
+  }, [navigate, setIsAuthenticated]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate authentication
-    setTimeout(() => {
-      if (formData.email && formData.password) {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
+
+      if (error) {
+        toast({
+          title: "Authentication Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (data.user) {
         setIsAuthenticated(true);
         toast({
           title: "Welcome back!",
-          description: "Successfully logged in to HostelLog.com",
+          description: "Successfully logged in to your hostel management system",
         });
-      } else {
-        toast({
-          title: "Invalid credentials",
-          description: "Please check your email and password",
-          variant: "destructive",
-        });
+        navigate("/");
       }
+    } catch (error) {
+      toast({
+        title: "Login Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
-      <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,rgba(156,146,172,0.03)_2px,transparent_2px)] bg-[length:60px_60px]"></div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.1)_2px,transparent_2px)] bg-[length:60px_60px]"></div>
       
-      <Card className="w-full max-w-md bg-slate-800/50 backdrop-blur-lg border-slate-700/50 shadow-2xl">
+      <Card className="w-full max-w-md bg-white/80 backdrop-blur-xl border-blue-200/50 shadow-2xl">
         <CardHeader className="space-y-1 text-center">
           <div className="flex items-center justify-center mb-4">
-            <div className="p-3 rounded-full bg-gradient-to-r from-cyan-500 to-purple-500">
+            <div className="p-3 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600">
               <Building2 className="h-8 w-8 text-white" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
-            HostelLog.com
+          <CardTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            HostelLog
           </CardTitle>
-          <CardDescription className="text-slate-400">
+          <CardDescription className="text-slate-600">
             Welcome back! Please sign in to your account
           </CardDescription>
         </CardHeader>
@@ -65,11 +93,11 @@ const Login = ({ setIsAuthenticated }: LoginProps) => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <div className="relative">
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
                 <Input
                   type="email"
-                  placeholder="Email or Username"
-                  className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-cyan-500"
+                  placeholder="Email address"
+                  className="pl-10 bg-white/70 border-blue-200 text-slate-900 placeholder:text-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   required
@@ -79,11 +107,11 @@ const Login = ({ setIsAuthenticated }: LoginProps) => {
             
             <div className="space-y-2">
               <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
                 <Input
                   type={showPassword ? "text" : "password"}
                   placeholder="Password"
-                  className="pl-10 pr-10 bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-cyan-500"
+                  className="pl-10 pr-10 bg-white/70 border-blue-200 text-slate-900 placeholder:text-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   required
@@ -91,7 +119,7 @@ const Login = ({ setIsAuthenticated }: LoginProps) => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 text-slate-400 hover:text-slate-300"
+                  className="absolute right-3 top-3 text-slate-500 hover:text-slate-700"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -101,7 +129,7 @@ const Login = ({ setIsAuthenticated }: LoginProps) => {
             <div className="flex items-center justify-between text-sm">
               <Link 
                 to="/forgot-password" 
-                className="text-cyan-400 hover:text-cyan-300 transition-colors"
+                className="text-blue-600 hover:text-blue-500 transition-colors"
               >
                 Forgot password?
               </Link>
@@ -109,10 +137,17 @@ const Login = ({ setIsAuthenticated }: LoginProps) => {
 
             <Button
               type="submit"
-              className="w-full bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white font-medium"
+              className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-medium"
               disabled={isLoading}
             >
-              {isLoading ? "Signing in..." : "Sign In"}
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                "Sign In"
+              )}
             </Button>
           </form>
         </CardContent>

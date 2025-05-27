@@ -24,6 +24,7 @@ interface User {
   email: string;
   phone: string;
   role: string;
+  hostel_id: string;
   hostels?: {
     name: string;
     address: string;

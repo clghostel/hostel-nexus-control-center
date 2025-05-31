@@ -129,13 +129,13 @@ const Rooms = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "available":
-        return <Badge className="bg-green-100 text-green-700 border-green-300">✅ Available</Badge>;
+        return <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100">✅ Available</Badge>;
       case "partial":
-        return <Badge className="bg-yellow-100 text-yellow-700 border-yellow-300">⚠️ Partial</Badge>;
+        return <Badge className="bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100">⚠️ Partial</Badge>;
       case "full":
-        return <Badge className="bg-red-100 text-red-700 border-red-300">❌ Full</Badge>;
+        return <Badge className="bg-red-50 text-red-700 border-red-200 hover:bg-red-100">❌ Full</Badge>;
       case "maintenance":
-        return <Badge className="bg-gray-100 text-gray-700 border-gray-300">🔧 Maintenance</Badge>;
+        return <Badge className="bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100">🔧 Maintenance</Badge>;
       default:
         return <Badge variant="secondary">Unknown</Badge>;
     }
@@ -172,7 +172,7 @@ const Rooms = () => {
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-700 to-slate-900 bg-clip-text text-transparent">
             Room Management
           </h1>
           <p className="text-slate-600 mt-1">Organize and manage your hostel rooms by floor</p>
@@ -180,12 +180,12 @@ const Rooms = () => {
         
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white">
+            <Button className="bg-slate-700 hover:bg-slate-800 text-white shadow-sm">
               <Plus className="h-4 w-4 mr-2" />
               Add Room
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-white border-slate-200">
+          <DialogContent className="bg-white border-slate-200 shadow-xl">
             <DialogHeader>
               <DialogTitle className="text-slate-800">Create New Room</DialogTitle>
               <DialogDescription className="text-slate-600">
@@ -198,7 +198,7 @@ const Rooms = () => {
                 <Input
                   id="roomNumber"
                   placeholder="e.g., 101"
-                  className="bg-white border-slate-300"
+                  className="bg-white border-slate-300 focus:border-slate-500"
                   value={newRoom.room_number}
                   onChange={(e) => setNewRoom({ ...newRoom, room_number: e.target.value })}
                 />
@@ -206,10 +206,10 @@ const Rooms = () => {
               <div>
                 <Label htmlFor="sharing" className="text-slate-700">Sharing Type</Label>
                 <Select value={newRoom.sharing_type} onValueChange={(value) => setNewRoom({ ...newRoom, sharing_type: value })}>
-                  <SelectTrigger className="bg-white border-slate-300">
+                  <SelectTrigger className="bg-white border-slate-300 focus:border-slate-500">
                     <SelectValue placeholder="Select sharing type" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-white border-slate-200">
                     <SelectItem value="1">1-share (Single)</SelectItem>
                     <SelectItem value="2">2-share</SelectItem>
                     <SelectItem value="3">3-share</SelectItem>
@@ -218,7 +218,7 @@ const Rooms = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <Button onClick={handleCreateRoom} className="w-full bg-gradient-to-r from-blue-500 to-indigo-600">
+              <Button onClick={handleCreateRoom} className="w-full bg-slate-700 hover:bg-slate-800">
                 Create Room
               </Button>
             </div>
@@ -227,15 +227,15 @@ const Rooms = () => {
       </div>
 
       {/* Filters */}
-      <Card className="bg-white/50 backdrop-blur border-slate-200/50">
+      <Card className="bg-white shadow-sm border-slate-200">
         <CardContent className="p-4">
           <div className="flex items-center space-x-4">
             <Filter className="h-4 w-4 text-slate-500" />
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-48 bg-white border-slate-300">
+              <SelectTrigger className="w-48 bg-white border-slate-300 focus:border-slate-500">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white border-slate-200">
                 <SelectItem value="all">All Rooms</SelectItem>
                 <SelectItem value="available">Available</SelectItem>
                 <SelectItem value="partial">Partially Occupied</SelectItem>
@@ -251,16 +251,16 @@ const Rooms = () => {
       {Object.entries(groupedRooms).map(([floorName, floorRooms]) => (
         <div key={floorName} className="space-y-4">
           <div className="flex items-center space-x-3">
-            <Building className="h-6 w-6 text-blue-600" />
+            <Building className="h-6 w-6 text-slate-600" />
             <h2 className="text-xl font-semibold text-slate-800">{floorName}</h2>
-            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
+            <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-300">
               {floorRooms.length} rooms
             </Badge>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {floorRooms.map((room) => (
-              <Card key={room.id} className="bg-white/50 backdrop-blur border-slate-200/50 hover:shadow-lg transition-all duration-300">
+              <Card key={room.id} className="bg-white shadow-sm border-slate-200 hover:shadow-md transition-all duration-300">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-slate-800">Room {room.room_number}</CardTitle>
@@ -274,7 +274,7 @@ const Rooms = () => {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center text-slate-600">
-                        <Users className="h-4 w-4 mr-2 text-blue-500" />
+                        <Users className="h-4 w-4 mr-2 text-slate-500" />
                         Occupancy
                       </div>
                       <span className="text-slate-800 font-medium">
@@ -283,7 +283,7 @@ const Rooms = () => {
                     </div>
                     
                     <div className="flex items-center text-sm text-slate-600">
-                      <Bed className="h-4 w-4 mr-2 text-green-500" />
+                      <Bed className="h-4 w-4 mr-2 text-emerald-500" />
                       {room.sharing_type - room.occupied_beds} beds available
                     </div>
 
@@ -305,7 +305,7 @@ const Rooms = () => {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="flex-1 border-blue-200 text-blue-600 hover:bg-blue-50"
+                        className="flex-1 border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-800"
                         onClick={() => navigate(`/rooms/${room.id}`)}
                       >
                         <Eye className="h-4 w-4 mr-2" />

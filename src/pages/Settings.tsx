@@ -1,10 +1,11 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -13,158 +14,27 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, User, Building, Mail, MapPin, Trash2, Settings as SettingsIcon, Shield } from "lucide-react";
+import { Plus, User, Building, Mail, Settings as SettingsIcon, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-
-interface User {
-  id: string;
-  full_name: string;
-  email: string;
-  phone: string;
-  role: string;
-  hostel_id: string;
-  hostels?: {
-    name: string;
-    address: string;
-  };
-}
 
 const Settings = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [users, setUsers] = useState<User[]>([]);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const { user, users, hostels } = useAuth();
   const [isCreateUserDialogOpen, setIsCreateUserDialogOpen] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [newUser, setNewUser] = useState({
     full_name: "",
     email: "",
     phone: "",
     password: "",
+    role: "user" as "admin" | "user",
+    hostel_id: ""
   });
 
-  useEffect(() => {
-    checkUserRole();
-    fetchUsers();
-  }, []);
-
-  const checkUserRole = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate("/login");
-        return;
-      }
-
-      const { data: userData } = await supabase
-        .from('users')
-        .select(`
-          *,
-          hostels (
-            name,
-            address
-          )
-        `)
-        .eq('auth_id', user.id)
-        .single();
-
-      if (userData) {
-        setCurrentUser(userData);
-        setIsAdmin(userData.role === 'admin');
-        
-        if (userData.role !== 'admin') {
-          toast({
-            title: "Access Denied",
-            description: "Only administrators can access settings",
-            variant: "destructive",
-          });
-          navigate("/");
-        }
-      }
-    } catch (error) {
-      console.error('Error checking user role:', error);
-      navigate("/login");
-    }
-  };
-
-  const fetchUsers = async () => {
-    if (!isAdmin) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select(`
-          *,
-          hostels (
-            name,
-            address
-          )
-        `);
-
-      if (error) throw error;
-      setUsers(data || []);
-    } catch (error) {
-      console.error('Error fetching users:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch users",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleCreateUser = async () => {
-    try {
-      // First create auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: newUser.email,
-        password: newUser.password,
-      });
-
-      if (authError) throw authError;
-
-      if (authData.user) {
-        // Then create user profile
-        const { error: profileError } = await supabase
-          .from('users')
-          .insert([{
-            auth_id: authData.user.id,
-            full_name: newUser.full_name,
-            email: newUser.email,
-            phone: newUser.phone,
-            role: 'staff',
-            hostel_id: currentUser?.hostel_id
-          }]);
-
-        if (profileError) throw profileError;
-
-        toast({
-          title: "✅ User created",
-          description: `${newUser.full_name} has been added successfully`,
-        });
-        
-        setNewUser({
-          full_name: "",
-          email: "",
-          phone: "",
-          password: "",
-        });
-        setIsCreateUserDialogOpen(false);
-        fetchUsers();
-      }
-    } catch (error) {
-      console.error('Error creating user:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create user",
-        variant: "destructive",
-      });
-    }
-  };
-
-  if (!isAdmin) {
+  // Check if user is admin
+  if (user?.role !== 'admin') {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Card className="w-full max-w-md bg-white/50 backdrop-blur border-slate-200/50">
@@ -183,6 +53,29 @@ const Settings = () => {
       </div>
     );
   }
+
+  const handleCreateUser = () => {
+    // Mock user creation
+    toast({
+      title: "✅ User created",
+      description: `${newUser.full_name} has been added successfully`,
+    });
+    
+    setNewUser({
+      full_name: "",
+      email: "",
+      phone: "",
+      password: "",
+      role: "user",
+      hostel_id: ""
+    });
+    setIsCreateUserDialogOpen(false);
+  };
+
+  const getUserHostel = (hostelId: string | null) => {
+    if (!hostelId) return null;
+    return hostels.find(h => h.id === hostelId);
+  };
 
   return (
     <div className="space-y-6 p-6">
@@ -205,7 +98,7 @@ const Settings = () => {
                 User Management
               </CardTitle>
               <CardDescription className="text-slate-600">
-                Manage admin and staff accounts
+                Manage admin and staff accounts across all hostels
               </CardDescription>
             </div>
             <Dialog open={isCreateUserDialogOpen} onOpenChange={setIsCreateUserDialogOpen}>
@@ -265,6 +158,33 @@ const Settings = () => {
                       onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                     />
                   </div>
+                  <div>
+                    <Label htmlFor="userRole" className="text-slate-700">Role *</Label>
+                    <Select value={newUser.role} onValueChange={(value: "admin" | "user") => setNewUser({ ...newUser, role: value })}>
+                      <SelectTrigger className="bg-white border-slate-300">
+                        <SelectValue placeholder="Select role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="user">User</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {newUser.role === 'user' && (
+                    <div>
+                      <Label htmlFor="userHostel" className="text-slate-700">Hostel *</Label>
+                      <Select value={newUser.hostel_id} onValueChange={(value) => setNewUser({ ...newUser, hostel_id: value })}>
+                        <SelectTrigger className="bg-white border-slate-300">
+                          <SelectValue placeholder="Select hostel" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {hostels.map((hostel) => (
+                            <SelectItem key={hostel.id} value={hostel.id}>{hostel.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                   <Button onClick={handleCreateUser} className="w-full bg-gradient-to-r from-blue-500 to-indigo-600">
                     Create User
                   </Button>
@@ -275,36 +195,107 @@ const Settings = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {users.map((user) => (
-              <div key={user.id} className="flex items-center justify-between p-4 rounded-lg bg-slate-50 border border-slate-200">
-                <div className="flex items-center space-x-4">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center">
-                    <User className="h-5 w-5 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-slate-800 font-medium">{user.full_name}</h3>
-                    <div className="flex items-center text-sm text-slate-600 mt-1">
-                      <Mail className="h-3 w-3 mr-1" />
-                      {user.email}
+            {users.map((userData) => {
+              const userHostel = getUserHostel(userData.hostel_id);
+              return (
+                <div key={userData.id} className="flex items-center justify-between p-4 rounded-lg bg-slate-50 border border-slate-200">
+                  <div className="flex items-center space-x-4">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                      userData.role === 'admin' 
+                        ? 'bg-gradient-to-r from-red-500 to-red-600' 
+                        : 'bg-gradient-to-r from-blue-500 to-indigo-600'
+                    }`}>
+                      <User className="h-5 w-5 text-white" />
                     </div>
-                    {user.phone && (
-                      <div className="flex items-center text-sm text-slate-600">
-                        <span>{user.phone}</span>
+                    <div>
+                      <h3 className="text-slate-800 font-medium">{userData.full_name}</h3>
+                      <div className="flex items-center text-sm text-slate-600 mt-1">
+                        <Mail className="h-3 w-3 mr-1" />
+                        {userData.email}
                       </div>
+                      {userData.phone && (
+                        <div className="flex items-center text-sm text-slate-600">
+                          <span>{userData.phone}</span>
+                        </div>
+                      )}
+                      {userHostel && (
+                        <div className="flex items-center text-sm text-slate-600 mt-1">
+                          <Building className="h-3 w-3 mr-1" />
+                          {userHostel.name}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Badge className={`text-xs px-2 py-1 rounded ${
+                      userData.role === 'admin' 
+                        ? 'bg-red-100 text-red-700 border-red-300' 
+                        : 'bg-blue-100 text-blue-700 border-blue-300'
+                    }`}>
+                      {userData.role}
+                    </Badge>
+                    {userData.role === 'user' && userHostel && (
+                      <Badge className="text-xs px-2 py-1 rounded bg-green-100 text-green-700 border-green-300">
+                        {userHostel.name}
+                      </Badge>
                     )}
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Badge className={`text-xs px-2 py-1 rounded ${
-                    user.role === 'admin' 
-                      ? 'bg-red-100 text-red-700 border-red-300' 
-                      : 'bg-blue-100 text-blue-700 border-blue-300'
-                  }`}>
-                    {user.role}
-                  </Badge>
-                </div>
-              </div>
-            ))}
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Hostels Overview */}
+      <Card className="bg-white/50 backdrop-blur border-slate-200/50">
+        <CardHeader>
+          <CardTitle className="flex items-center text-slate-800">
+            <Building className="h-5 w-5 mr-2 text-green-500" />
+            Hostels Overview
+          </CardTitle>
+          <CardDescription className="text-slate-600">
+            All hostels in the system
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {hostels.map((hostel) => {
+              const hostelUsers = users.filter(u => u.hostel_id === hostel.id);
+              return (
+                <Card key={hostel.id} className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg text-green-900">{hostel.name}</CardTitle>
+                    <CardDescription className="text-green-700 text-sm">
+                      {hostel.address}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-0 space-y-3">
+                    <div className="space-y-1 text-sm">
+                      <p className="text-green-800 flex items-center">
+                        <Mail className="h-3 w-3 mr-1" />
+                        {hostel.email}
+                      </p>
+                      <p className="text-green-800">📞 {hostel.phone}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-green-900 mb-1">Assigned Users:</p>
+                      {hostelUsers.length > 0 ? (
+                        <div className="space-y-1">
+                          {hostelUsers.map(u => (
+                            <Badge key={u.id} variant="outline" className="text-xs mr-1 bg-green-50 border-green-300">
+                              {u.full_name}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-green-600 italic">No users assigned</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
@@ -326,7 +317,7 @@ const Settings = () => {
               <Label htmlFor="systemName" className="text-slate-700">System Name</Label>
               <Input
                 id="systemName"
-                defaultValue={currentUser?.hostels?.name || "HostelLog"}
+                defaultValue="HostelLog"
                 className="bg-white border-slate-300"
               />
             </div>

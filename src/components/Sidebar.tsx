@@ -11,17 +11,23 @@ import {
   Activity
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Sidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const menuItems = [
-    { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
+    { icon: LayoutDashboard, label: "Dashboard", path: "/" },
     { icon: Bed, label: "Rooms", path: "/rooms" },
     { icon: Users, label: "Guests", path: "/guests" },
-    { icon: Settings, label: "Settings", path: "/settings" },
   ];
+
+  // Only show settings for admin users
+  if (user?.role === 'admin') {
+    menuItems.push({ icon: Settings, label: "Settings", path: "/settings" });
+  }
 
   const quickActions = [
     { icon: Plus, label: "Add Room", action: () => {} },
@@ -64,6 +70,16 @@ const Sidebar = () => {
               </Button>
             ))}
           </div>
+        </div>
+
+        {/* User Info */}
+        <div className="mt-8 p-3 bg-slate-700/30 rounded-lg">
+          <div className="text-xs text-slate-400 mb-1">Logged in as:</div>
+          <div className="text-sm text-slate-200 font-medium">{user?.full_name}</div>
+          <div className="text-xs text-slate-400 capitalize">{user?.role}</div>
+          {user?.hostel && (
+            <div className="text-xs text-slate-400 mt-1">{user.hostel.name}</div>
+          )}
         </div>
       </div>
     </div>

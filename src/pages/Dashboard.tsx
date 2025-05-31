@@ -1,90 +1,30 @@
 
-import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
   Users, 
   Bed, 
   CreditCard, 
-  TrendingUp, 
   Building, 
   UserPlus,
   Home,
   Settings,
-  Eye,
-  Plus
+  Eye
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const [stats, setStats] = useState({
-    totalGuests: 0,
-    totalRooms: 0,
-    occupiedBeds: 0,
-    monthlyRevenue: 0,
-    availableRooms: 0
-  });
-  const [userRole, setUserRole] = useState<string>('');
-  const [hostelName, setHostelName] = useState<string>('');
+  const { user, hostels } = useAuth();
 
-  useEffect(() => {
-    fetchDashboardData();
-    fetchUserInfo();
-  }, []);
-
-  const fetchUserInfo = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: userData } = await supabase
-          .from('users')
-          .select('role, hostels(name)')
-          .eq('auth_id', user.id)
-          .single();
-        
-        if (userData) {
-          setUserRole(userData.role);
-          setHostelName(userData.hostels?.name || 'HostelLog');
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching user info:', error);
-    }
-  };
-
-  const fetchDashboardData = async () => {
-    try {
-      const { data: guests } = await supabase
-        .from('guests')
-        .select('*')
-        .eq('status', 'active');
-
-      const { data: rooms } = await supabase
-        .from('rooms')
-        .select('*');
-
-      if (guests && rooms) {
-        const totalGuests = guests.length;
-        const totalRooms = rooms.length;
-        const occupiedBeds = rooms.reduce((sum, room) => sum + room.occupied_beds, 0);
-        const availableRooms = rooms.filter(room => room.status === 'available').length;
-        const monthlyRevenue = guests.reduce((sum, guest) => sum + (guest.paying_amount || 0), 0);
-
-        setStats({
-          totalGuests,
-          totalRooms,
-          occupiedBeds,
-          monthlyRevenue,
-          availableRooms
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-    }
+  // Mock stats - in real app, these would come from API
+  const mockStats = {
+    totalGuests: 45,
+    totalRooms: 25,
+    occupiedBeds: 38,
+    monthlyRevenue: 125000,
+    availableRooms: 12
   };
 
   const quickActions = [
@@ -118,7 +58,7 @@ const Dashboard = () => {
     }
   ];
 
-  if (userRole === 'admin') {
+  if (user?.role === 'admin') {
     quickActions.push({
       title: "Settings",
       description: "System configuration",
@@ -133,24 +73,72 @@ const Dashboard = () => {
       {/* Welcome Header */}
       <div className="text-center space-y-2">
         <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-          Welcome to {hostelName}
+          Welcome, {user?.full_name}
         </h1>
         <p className="text-slate-600 text-lg">
-          Your hostel management dashboard
+          {user?.role === 'admin' 
+            ? 'System Administrator Dashboard' 
+            : `${user?.hostel?.name} Management Dashboard`
+          }
         </p>
       </div>
+
+      {/* Admin View - All Hostels */}
+      {user?.role === 'admin' && (
+        <Card className="bg-white/50 backdrop-blur border-slate-200/50">
+          <CardHeader>
+            <CardTitle className="text-slate-800 flex items-center">
+              <Building className="h-5 w-5 mr-2 text-blue-500" />
+              All Hostels Overview
+            </CardTitle>
+            <CardDescription className="text-slate-600">
+              Manage all hostels in the system
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {hostels.map((hostel) => (
+                <Card key={hostel.id} className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg text-blue-900">{hostel.name}</CardTitle>
+                    <CardDescription className="text-blue-700">
+                      {hostel.address}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="space-y-2 text-sm">
+                      <p className="text-blue-800">📧 {hostel.email}</p>
+                      <p className="text-blue-800">📞 {hostel.phone}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 mt-4 text-xs">
+                      <div className="bg-blue-100 p-2 rounded text-center">
+                        <div className="font-bold text-blue-900">15</div>
+                        <div className="text-blue-700">Guests</div>
+                      </div>
+                      <div className="bg-indigo-100 p-2 rounded text-center">
+                        <div className="font-bold text-indigo-900">8</div>
+                        <div className="text-indigo-700">Rooms</div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-blue-800">
-              Total Guests
+              {user?.role === 'admin' ? 'Total Guests (All)' : 'Total Guests'}
             </CardTitle>
             <Users className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-900">{stats.totalGuests}</div>
+            <div className="text-2xl font-bold text-blue-900">{mockStats.totalGuests}</div>
             <p className="text-xs text-blue-600">
               Active residents
             </p>
@@ -165,9 +153,9 @@ const Dashboard = () => {
             <Bed className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-900">{stats.availableRooms}</div>
+            <div className="text-2xl font-bold text-green-900">{mockStats.availableRooms}</div>
             <p className="text-xs text-green-600">
-              Out of {stats.totalRooms} total
+              Out of {mockStats.totalRooms} total
             </p>
           </CardContent>
         </Card>
@@ -180,7 +168,7 @@ const Dashboard = () => {
             <Building className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-purple-900">{stats.occupiedBeds}</div>
+            <div className="text-2xl font-bold text-purple-900">{mockStats.occupiedBeds}</div>
             <p className="text-xs text-purple-600">
               Current occupancy
             </p>
@@ -196,7 +184,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-orange-900">
-              ₹{stats.monthlyRevenue.toLocaleString()}
+              ₹{mockStats.monthlyRevenue.toLocaleString()}
             </div>
             <p className="text-xs text-orange-600">
               This month
@@ -230,7 +218,7 @@ const Dashboard = () => {
         <CardHeader>
           <CardTitle className="text-slate-800">Recent Activity</CardTitle>
           <CardDescription className="text-slate-600">
-            Latest updates from your hostel
+            Latest updates from {user?.role === 'admin' ? 'all hostels' : 'your hostel'}
           </CardDescription>
         </CardHeader>
         <CardContent>

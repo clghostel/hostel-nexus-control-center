@@ -1,7 +1,8 @@
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
 import Dashboard from "@/pages/Dashboard";
 import Guests from "@/pages/Guests";
@@ -10,32 +11,9 @@ import RoomView from "@/pages/RoomView";
 import Settings from "@/pages/Settings";
 import Login from "@/pages/Login";
 import ForgotPassword from "@/pages/ForgotPassword";
-import { supabase } from "@/integrations/supabase/client";
 
-function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-
-  useEffect(() => {
-    // Check current session
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setIsAuthenticated(!!session);
-      setIsLoading(false);
-    };
-
-    checkSession();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setIsAuthenticated(!!session);
-        setIsLoading(false);
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, []);
+const AppContent = () => {
+  const { user, isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -55,15 +33,15 @@ function App() {
           <Route 
             path="/login" 
             element={
-              isAuthenticated ? 
+              user ? 
               <Navigate to="/" replace /> : 
-              <Login setIsAuthenticated={setIsAuthenticated} />
+              <Login />
             } 
           />
           <Route 
             path="/forgot-password" 
             element={
-              isAuthenticated ? 
+              user ? 
               <Navigate to="/" replace /> : 
               <ForgotPassword />
             } 
@@ -71,7 +49,7 @@ function App() {
           <Route
             path="/*"
             element={
-              isAuthenticated ? (
+              user ? (
                 <Layout>
                   <Routes>
                     <Route path="/" element={<Dashboard />} />
@@ -90,6 +68,14 @@ function App() {
         <Toaster />
       </div>
     </Router>
+  );
+};
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 

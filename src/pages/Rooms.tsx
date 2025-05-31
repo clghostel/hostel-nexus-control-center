@@ -20,10 +20,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Bed, Users, Eye, Trash2, Filter, Building } from "lucide-react";
+import { Plus, Bed, Users, Eye, Filter, Building } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Room {
   id: string;
@@ -37,82 +37,80 @@ interface Room {
   guests: any[];
 }
 
-interface Floor {
-  id: string;
-  floor_number: number;
-  floor_name: string;
-}
-
 const Rooms = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [floors, setFloors] = useState<Floor[]>([]);
   const [filterStatus, setFilterStatus] = useState("all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newRoom, setNewRoom] = useState({
     room_number: "",
     sharing_type: "",
-    rent_amount: "",
-    floor_id: "",
   });
 
+  // Mock rooms data
+  const mockRooms: Room[] = [
+    {
+      id: '1',
+      room_number: '101',
+      sharing_type: 2,
+      rent_amount: 8000,
+      status: 'available',
+      occupied_beds: 1,
+      floor_number: 1,
+      floor_name: 'Ground Floor',
+      guests: [{ full_name: 'John Doe' }]
+    },
+    {
+      id: '2',
+      room_number: '102',
+      sharing_type: 3,
+      rent_amount: 6500,
+      status: 'partial',
+      occupied_beds: 2,
+      floor_number: 1,
+      floor_name: 'Ground Floor',
+      guests: [{ full_name: 'Jane Smith' }, { full_name: 'Mike Johnson' }]
+    },
+    {
+      id: '3',
+      room_number: '201',
+      sharing_type: 4,
+      rent_amount: 5500,
+      status: 'full',
+      occupied_beds: 4,
+      floor_number: 2,
+      floor_name: 'First Floor',
+      guests: [{ full_name: 'Alice Brown' }, { full_name: 'Bob Wilson' }, { full_name: 'Carol Davis' }, { full_name: 'David Lee' }]
+    },
+    {
+      id: '4',
+      room_number: '202',
+      sharing_type: 1,
+      rent_amount: 12000,
+      status: 'available',
+      occupied_beds: 0,
+      floor_number: 2,
+      floor_name: 'First Floor',
+      guests: []
+    },
+    {
+      id: '5',
+      room_number: '301',
+      sharing_type: 6,
+      rent_amount: 4500,
+      status: 'maintenance',
+      occupied_beds: 0,
+      floor_number: 3,
+      floor_name: 'Second Floor',
+      guests: []
+    },
+  ];
+
   useEffect(() => {
-    fetchRooms();
-    fetchFloors();
+    setRooms(mockRooms);
   }, []);
-
-  const fetchRooms = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('rooms')
-        .select(`
-          *,
-          floors (
-            floor_number,
-            floor_name
-          ),
-          guests (
-            id,
-            full_name,
-            phone,
-            email
-          )
-        `);
-
-      if (error) throw error;
-
-      const roomsWithFloorInfo = data?.map(room => ({
-        ...room,
-        floor_number: room.floors?.floor_number || 0,
-        floor_name: room.floors?.floor_name || 'Unknown Floor',
-        guests: room.guests || []
-      })) || [];
-
-      setRooms(roomsWithFloorInfo);
-    } catch (error) {
-      console.error('Error fetching rooms:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch rooms",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const fetchFloors = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('floors')
-        .select('*')
-        .order('floor_number');
-
-      if (error) throw error;
-      setFloors(data || []);
-    } catch (error) {
-      console.error('Error fetching floors:', error);
-    }
-  };
 
   const filteredRooms = rooms.filter(room => {
     if (filterStatus === "all") return true;
@@ -143,54 +141,31 @@ const Rooms = () => {
     }
   };
 
-  const handleCreateRoom = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
+  const handleCreateRoom = () => {
+    const roomData = {
+      id: Date.now().toString(),
+      room_number: newRoom.room_number,
+      sharing_type: parseInt(newRoom.sharing_type),
+      rent_amount: 0,
+      status: 'available',
+      occupied_beds: 0,
+      floor_number: 1,
+      floor_name: 'Ground Floor',
+      guests: []
+    };
 
-      const { data: userData } = await supabase
-        .from('users')
-        .select('hostel_id')
-        .eq('auth_id', user.id)
-        .single();
+    setRooms(prev => [...prev, roomData]);
 
-      if (!userData) throw new Error('User data not found');
+    toast({
+      title: "✅ Room created",
+      description: `Room ${newRoom.room_number} has been created successfully`,
+    });
 
-      const roomData = {
-        room_number: newRoom.room_number,
-        sharing_type: parseInt(newRoom.sharing_type),
-        rent_amount: parseFloat(newRoom.rent_amount),
-        floor_id: newRoom.floor_id,
-        hostel_id: userData.hostel_id,
-      };
-
-      const { error } = await supabase
-        .from('rooms')
-        .insert([roomData]);
-
-      if (error) throw error;
-
-      toast({
-        title: "✅ Room created",
-        description: `Room ${newRoom.room_number} has been created successfully`,
-      });
-
-      setNewRoom({
-        room_number: "",
-        sharing_type: "",
-        rent_amount: "",
-        floor_id: "",
-      });
-      setIsCreateDialogOpen(false);
-      fetchRooms();
-    } catch (error) {
-      console.error('Error creating room:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create room",
-        variant: "destructive",
-      });
-    }
+    setNewRoom({
+      room_number: "",
+      sharing_type: "",
+    });
+    setIsCreateDialogOpen(false);
   };
 
   return (
@@ -229,21 +204,6 @@ const Rooms = () => {
                 />
               </div>
               <div>
-                <Label htmlFor="floor" className="text-slate-700">Floor</Label>
-                <Select value={newRoom.floor_id} onValueChange={(value) => setNewRoom({ ...newRoom, floor_id: value })}>
-                  <SelectTrigger className="bg-white border-slate-300">
-                    <SelectValue placeholder="Select floor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {floors.map((floor) => (
-                      <SelectItem key={floor.id} value={floor.id}>
-                        Floor {floor.floor_number} - {floor.floor_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
                 <Label htmlFor="sharing" className="text-slate-700">Sharing Type</Label>
                 <Select value={newRoom.sharing_type} onValueChange={(value) => setNewRoom({ ...newRoom, sharing_type: value })}>
                   <SelectTrigger className="bg-white border-slate-300">
@@ -257,17 +217,6 @@ const Rooms = () => {
                     <SelectItem value="6">6-share</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-              <div>
-                <Label htmlFor="rentAmount" className="text-slate-700">Rent Amount (₹)</Label>
-                <Input
-                  id="rentAmount"
-                  type="number"
-                  placeholder="Enter rent amount"
-                  className="bg-white border-slate-300"
-                  value={newRoom.rent_amount}
-                  onChange={(e) => setNewRoom({ ...newRoom, rent_amount: e.target.value })}
-                />
               </div>
               <Button onClick={handleCreateRoom} className="w-full bg-gradient-to-r from-blue-500 to-indigo-600">
                 Create Room

@@ -30,8 +30,8 @@ const Sidebar = () => {
   }
 
   const quickActions = [
-    { icon: Plus, label: "Add Room", action: () => {} },
-    { icon: UserPlus, label: "Add Guest", action: () => {} },
+    { icon: Plus, label: "Add Room", action: () => navigate("/rooms") },
+    { icon: UserPlus, label: "Add Guest", action: () => navigate("/guests") },
     { icon: Activity, label: "Room Status", action: () => navigate("/rooms") },
   ];
 

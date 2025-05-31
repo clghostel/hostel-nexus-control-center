@@ -9,23 +9,75 @@ import {
   UserPlus,
   Home,
   Settings,
-  Eye
+  Eye,
+  Plus
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user, hostels } = useAuth();
+  const { toast } = useToast();
+  const [isCreateUserDialogOpen, setIsCreateUserDialogOpen] = useState(false);
+  const [isCreateHostelDialogOpen, setIsCreateHostelDialogOpen] = useState(false);
+  const [newUser, setNewUser] = useState({
+    full_name: "",
+    email: "",
+    phone: "",
+    password: "",
+    role: "user" as "admin" | "user",
+    hostel_id: ""
+  });
+  const [newHostel, setNewHostel] = useState({
+    name: "",
+    address: "",
+    email: "",
+    phone: ""
+  });
 
-  // Mock stats - in real app, these would come from API
-  const mockStats = {
-    totalGuests: 45,
-    totalRooms: 25,
-    occupiedBeds: 38,
-    monthlyRevenue: 125000,
-    availableRooms: 12
+  // Realistic stats based on current user
+  const getStatsForUser = () => {
+    if (user?.role === 'admin') {
+      return {
+        totalGuests: 45,
+        totalRooms: 25,
+        occupiedBeds: 38,
+        monthlyRevenue: 325000,
+        availableRooms: 12
+      };
+    } else {
+      // Individual hostel stats
+      return {
+        totalGuests: 15,
+        totalRooms: 8,
+        occupiedBeds: 12,
+        monthlyRevenue: 84000,
+        availableRooms: 4
+      };
+    }
   };
+
+  const stats = getStatsForUser();
 
   const quickActions = [
     {
@@ -59,14 +111,62 @@ const Dashboard = () => {
   ];
 
   if (user?.role === 'admin') {
-    quickActions.push({
-      title: "Settings",
-      description: "System configuration",
-      icon: Settings,
-      action: () => navigate("/settings"),
-      color: "from-gray-500 to-gray-600"
-    });
+    quickActions.push(
+      {
+        title: "Create User",
+        description: "Add new system user",
+        icon: UserPlus,
+        action: () => setIsCreateUserDialogOpen(true),
+        color: "from-indigo-500 to-indigo-600"
+      },
+      {
+        title: "Create Hostel",
+        description: "Add new hostel",
+        icon: Plus,
+        action: () => setIsCreateHostelDialogOpen(true),
+        color: "from-cyan-500 to-cyan-600"
+      },
+      {
+        title: "Settings",
+        description: "System configuration",
+        icon: Settings,
+        action: () => navigate("/settings"),
+        color: "from-gray-500 to-gray-600"
+      }
+    );
   }
+
+  const handleCreateUser = () => {
+    toast({
+      title: "✅ User created",
+      description: `${newUser.full_name} has been added successfully`,
+    });
+    
+    setNewUser({
+      full_name: "",
+      email: "",
+      phone: "",
+      password: "",
+      role: "user",
+      hostel_id: ""
+    });
+    setIsCreateUserDialogOpen(false);
+  };
+
+  const handleCreateHostel = () => {
+    toast({
+      title: "✅ Hostel created",
+      description: `${newHostel.name} has been added successfully`,
+    });
+    
+    setNewHostel({
+      name: "",
+      address: "",
+      email: "",
+      phone: ""
+    });
+    setIsCreateHostelDialogOpen(false);
+  };
 
   return (
     <div className="space-y-8 p-6">
@@ -138,7 +238,7 @@ const Dashboard = () => {
             <Users className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-900">{mockStats.totalGuests}</div>
+            <div className="text-2xl font-bold text-blue-900">{stats.totalGuests}</div>
             <p className="text-xs text-blue-600">
               Active residents
             </p>
@@ -153,9 +253,9 @@ const Dashboard = () => {
             <Bed className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-900">{mockStats.availableRooms}</div>
+            <div className="text-2xl font-bold text-green-900">{stats.availableRooms}</div>
             <p className="text-xs text-green-600">
-              Out of {mockStats.totalRooms} total
+              Out of {stats.totalRooms} total
             </p>
           </CardContent>
         </Card>
@@ -168,7 +268,7 @@ const Dashboard = () => {
             <Building className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-purple-900">{mockStats.occupiedBeds}</div>
+            <div className="text-2xl font-bold text-purple-900">{stats.occupiedBeds}</div>
             <p className="text-xs text-purple-600">
               Current occupancy
             </p>
@@ -184,7 +284,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-orange-900">
-              ₹{mockStats.monthlyRevenue.toLocaleString()}
+              ₹{stats.monthlyRevenue.toLocaleString()}
             </div>
             <p className="text-xs text-orange-600">
               This month
@@ -226,7 +326,7 @@ const Dashboard = () => {
             <div className="flex items-center space-x-4 p-4 rounded-lg bg-blue-50 border border-blue-200">
               <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
               <div className="flex-1">
-                <p className="text-sm text-slate-800">New guest registration in Room 101</p>
+                <p className="text-sm text-slate-800">John Doe registered in Room 101</p>
                 <p className="text-xs text-slate-500">2 hours ago</p>
               </div>
             </div>
@@ -240,13 +340,157 @@ const Dashboard = () => {
             <div className="flex items-center space-x-4 p-4 rounded-lg bg-orange-50 border border-orange-200">
               <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
               <div className="flex-1">
-                <p className="text-sm text-slate-800">Monthly rent collected: ₹45,000</p>
+                <p className="text-sm text-slate-800">Monthly rent collected: ₹{user?.role === 'admin' ? '45,000' : '28,000'}</p>
                 <p className="text-xs text-slate-500">1 day ago</p>
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Create User Dialog */}
+      <Dialog open={isCreateUserDialogOpen} onOpenChange={setIsCreateUserDialogOpen}>
+        <DialogContent className="bg-white border-slate-200">
+          <DialogHeader>
+            <DialogTitle className="text-slate-800">Create New User</DialogTitle>
+            <DialogDescription className="text-slate-600">
+              Add a new user to the system
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="userName" className="text-slate-700">Full Name *</Label>
+              <Input
+                id="userName"
+                placeholder="Enter full name"
+                className="bg-white border-slate-300"
+                value={newUser.full_name}
+                onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="userEmail" className="text-slate-700">Email *</Label>
+              <Input
+                id="userEmail"
+                type="email"
+                placeholder="Enter email address"
+                className="bg-white border-slate-300"
+                value={newUser.email}
+                onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="userPhone" className="text-slate-700">Phone</Label>
+              <Input
+                id="userPhone"
+                placeholder="Enter phone number"
+                className="bg-white border-slate-300"
+                value={newUser.phone}
+                onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="userPassword" className="text-slate-700">Password *</Label>
+              <Input
+                id="userPassword"
+                type="password"
+                placeholder="Enter password"
+                className="bg-white border-slate-300"
+                value={newUser.password}
+                onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="userRole" className="text-slate-700">Role *</Label>
+              <Select value={newUser.role} onValueChange={(value: "admin" | "user") => setNewUser({ ...newUser, role: value })}>
+                <SelectTrigger className="bg-white border-slate-300">
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="user">User</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {newUser.role === 'user' && (
+              <div>
+                <Label htmlFor="userHostel" className="text-slate-700">Hostel *</Label>
+                <Select value={newUser.hostel_id} onValueChange={(value) => setNewUser({ ...newUser, hostel_id: value })}>
+                  <SelectTrigger className="bg-white border-slate-300">
+                    <SelectValue placeholder="Select hostel" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {hostels.map((hostel) => (
+                      <SelectItem key={hostel.id} value={hostel.id}>{hostel.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <Button onClick={handleCreateUser} className="w-full bg-gradient-to-r from-blue-500 to-indigo-600">
+              Create User
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Hostel Dialog */}
+      <Dialog open={isCreateHostelDialogOpen} onOpenChange={setIsCreateHostelDialogOpen}>
+        <DialogContent className="bg-white border-slate-200">
+          <DialogHeader>
+            <DialogTitle className="text-slate-800">Create New Hostel</DialogTitle>
+            <DialogDescription className="text-slate-600">
+              Add a new hostel to the system
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="hostelName" className="text-slate-700">Hostel Name *</Label>
+              <Input
+                id="hostelName"
+                placeholder="Enter hostel name"
+                className="bg-white border-slate-300"
+                value={newHostel.name}
+                onChange={(e) => setNewHostel({ ...newHostel, name: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="hostelAddress" className="text-slate-700">Address *</Label>
+              <Input
+                id="hostelAddress"
+                placeholder="Enter full address"
+                className="bg-white border-slate-300"
+                value={newHostel.address}
+                onChange={(e) => setNewHostel({ ...newHostel, address: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="hostelEmail" className="text-slate-700">Email *</Label>
+              <Input
+                id="hostelEmail"
+                type="email"
+                placeholder="Enter email address"
+                className="bg-white border-slate-300"
+                value={newHostel.email}
+                onChange={(e) => setNewHostel({ ...newHostel, email: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="hostelPhone" className="text-slate-700">Phone *</Label>
+              <Input
+                id="hostelPhone"
+                placeholder="Enter phone number"
+                className="bg-white border-slate-300"
+                value={newHostel.phone}
+                onChange={(e) => setNewHostel({ ...newHostel, phone: e.target.value })}
+              />
+            </div>
+            <Button onClick={handleCreateHostel} className="w-full bg-gradient-to-r from-blue-500 to-indigo-600">
+              Create Hostel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

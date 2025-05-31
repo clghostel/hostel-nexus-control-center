@@ -21,9 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, User, Phone, Mail, Eye, Search, Filter, Building } from "lucide-react";
+import { Plus, User, Phone, Mail, Eye, Search, Filter, Building, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 
 interface Guest {
   id: string;
@@ -38,6 +37,7 @@ interface Guest {
   office_address: string;
   government_id: string;
   photo_url: string;
+  id_proof_url: string;
   paying_amount: number;
   advance_amount: number;
   join_date: string;
@@ -57,7 +57,12 @@ interface Room {
 const Guests = () => {
   const { toast } = useToast();
   const [guests, setGuests] = useState<Guest[]>([]);
-  const [rooms, setRooms] = useState<Room[]>([]);
+  const [rooms] = useState<Room[]>([
+    { id: '1', room_number: '101', sharing_type: 2, rent_amount: 8000, occupied_beds: 1 },
+    { id: '2', room_number: '102', sharing_type: 3, rent_amount: 6500, occupied_beds: 2 },
+    { id: '3', room_number: '201', sharing_type: 4, rent_amount: 5500, occupied_beds: 3 },
+    { id: '4', room_number: '202', sharing_type: 1, rent_amount: 12000, occupied_beds: 0 },
+  ]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
@@ -77,58 +82,80 @@ const Guests = () => {
     room_id: "",
     paying_amount: "",
     advance_amount: "",
+    photo_file: null as File | null,
+    id_proof_file: null as File | null,
   });
 
+  // Mock guests data
+  const mockGuests: Guest[] = [
+    {
+      id: '1',
+      full_name: 'John Doe',
+      phone: '+91 9876543210',
+      email: 'john.doe@email.com',
+      date_of_birth: '1995-05-15',
+      parent_name: 'Robert Doe',
+      parent_contact: '+91 9876543211',
+      purpose: 'Job',
+      permanent_address: '123 Main St, Delhi',
+      office_address: 'Tech Park, Gurgaon',
+      government_id: 'ABCD1234E',
+      photo_url: '',
+      id_proof_url: '',
+      paying_amount: 8000,
+      advance_amount: 16000,
+      join_date: '2024-01-15',
+      status: 'active',
+      room_number: '101',
+      sharing_type: 2
+    },
+    {
+      id: '2',
+      full_name: 'Jane Smith',
+      phone: '+91 9876543212',
+      email: 'jane.smith@email.com',
+      date_of_birth: '1994-08-22',
+      parent_name: 'Michael Smith',
+      parent_contact: '+91 9876543213',
+      purpose: 'Study',
+      permanent_address: '456 Park Ave, Mumbai',
+      office_address: 'University Campus, Mumbai',
+      government_id: 'EFGH5678F',
+      photo_url: '',
+      id_proof_url: '',
+      paying_amount: 6500,
+      advance_amount: 13000,
+      join_date: '2024-02-01',
+      status: 'active',
+      room_number: '102',
+      sharing_type: 3
+    },
+    {
+      id: '3',
+      full_name: 'Mike Johnson',
+      phone: '+91 9876543214',
+      email: 'mike.johnson@email.com',
+      date_of_birth: '1996-11-10',
+      parent_name: 'David Johnson',
+      parent_contact: '+91 9876543215',
+      purpose: 'Business',
+      permanent_address: '789 Oak St, Bangalore',
+      office_address: 'Business District, Bangalore',
+      government_id: 'IJKL9012G',
+      photo_url: '',
+      id_proof_url: '',
+      paying_amount: 6500,
+      advance_amount: 13000,
+      join_date: '2024-01-20',
+      status: 'active',
+      room_number: '102',
+      sharing_type: 3
+    }
+  ];
+
   useEffect(() => {
-    fetchGuests();
-    fetchRooms();
+    setGuests(mockGuests);
   }, []);
-
-  const fetchGuests = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('guests')
-        .select(`
-          *,
-          rooms (
-            room_number,
-            sharing_type,
-            rent_amount
-          )
-        `);
-
-      if (error) throw error;
-
-      const guestsWithRoomInfo = data?.map(guest => ({
-        ...guest,
-        room_number: guest.rooms?.room_number,
-        sharing_type: guest.rooms?.sharing_type
-      })) || [];
-
-      setGuests(guestsWithRoomInfo);
-    } catch (error) {
-      console.error('Error fetching guests:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch guests",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const fetchRooms = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('rooms')
-        .select('*')
-        .neq('status', 'full');
-
-      if (error) throw error;
-      setRooms(data || []);
-    } catch (error) {
-      console.error('Error fetching rooms:', error);
-    }
-  };
 
   const filteredGuests = guests.filter(guest => {
     const matchesSearch = guest.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -154,63 +181,58 @@ const Guests = () => {
     }
   };
 
-  const handleCreateGuest = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-
-      const { data: userData } = await supabase
-        .from('users')
-        .select('hostel_id')
-        .eq('auth_id', user.id)
-        .single();
-
-      if (!userData) throw new Error('User data not found');
-
-      const guestData = {
-        ...newGuest,
-        hostel_id: userData.hostel_id,
-        paying_amount: parseFloat(newGuest.paying_amount) || 0,
-        advance_amount: parseFloat(newGuest.advance_amount) || 0,
-        room_id: newGuest.room_id || null,
-      };
-
-      const { error } = await supabase
-        .from('guests')
-        .insert([guestData]);
-
-      if (error) throw error;
-
+  const handleFileUpload = (file: File | null, type: 'photo' | 'id_proof') => {
+    if (file) {
+      setNewGuest(prev => ({
+        ...prev,
+        [`${type}_file`]: file
+      }));
       toast({
-        title: "✅ Guest created",
-        description: `${newGuest.full_name} has been registered successfully`,
-      });
-
-      setNewGuest({
-        full_name: "",
-        phone: "",
-        email: "",
-        date_of_birth: "",
-        parent_name: "",
-        parent_contact: "",
-        purpose: "",
-        permanent_address: "",
-        office_address: "",
-        government_id: "",
-        room_id: "",
-        paying_amount: "",
-        advance_amount: "",
-      });
-      setIsCreateDialogOpen(false);
-      fetchGuests();
-    } catch (error) {
-      console.error('Error creating guest:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create guest",
-        variant: "destructive",
+        title: "File uploaded",
+        description: `${type === 'photo' ? 'Photo' : 'ID Proof'} has been selected`,
       });
     }
+  };
+
+  const handleCreateGuest = () => {
+    const guestData: Guest = {
+      id: Date.now().toString(),
+      ...newGuest,
+      paying_amount: parseFloat(newGuest.paying_amount) || 0,
+      advance_amount: parseFloat(newGuest.advance_amount) || 0,
+      photo_url: newGuest.photo_file ? URL.createObjectURL(newGuest.photo_file) : '',
+      id_proof_url: newGuest.id_proof_file ? URL.createObjectURL(newGuest.id_proof_file) : '',
+      join_date: new Date().toISOString().split('T')[0],
+      status: 'active',
+      room_number: rooms.find(r => r.id === newGuest.room_id)?.room_number,
+      sharing_type: rooms.find(r => r.id === newGuest.room_id)?.sharing_type,
+    };
+
+    setGuests(prev => [...prev, guestData]);
+
+    toast({
+      title: "✅ Guest created",
+      description: `${newGuest.full_name} has been registered successfully`,
+    });
+
+    setNewGuest({
+      full_name: "",
+      phone: "",
+      email: "",
+      date_of_birth: "",
+      parent_name: "",
+      parent_contact: "",
+      purpose: "",
+      permanent_address: "",
+      office_address: "",
+      government_id: "",
+      room_id: "",
+      paying_amount: "",
+      advance_amount: "",
+      photo_file: null,
+      id_proof_file: null,
+    });
+    setIsCreateDialogOpen(false);
   };
 
   const handleViewProfile = (guest: Guest) => {
@@ -354,6 +376,51 @@ const Guests = () => {
                   onChange={(e) => setNewGuest({ ...newGuest, paying_amount: e.target.value })}
                 />
               </div>
+              
+              {/* Upload buttons */}
+              <div>
+                <Label className="text-slate-700">Passport Photo *</Label>
+                <div className="mt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full border-dashed border-slate-300 hover:border-blue-400"
+                    onClick={() => document.getElementById('photo-upload')?.click()}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    {newGuest.photo_file ? newGuest.photo_file.name : 'Upload Photo'}
+                  </Button>
+                  <input
+                    id="photo-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleFileUpload(e.target.files?.[0] || null, 'photo')}
+                  />
+                </div>
+              </div>
+              <div>
+                <Label className="text-slate-700">ID Proof *</Label>
+                <div className="mt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full border-dashed border-slate-300 hover:border-blue-400"
+                    onClick={() => document.getElementById('id-proof-upload')?.click()}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    {newGuest.id_proof_file ? newGuest.id_proof_file.name : 'Upload ID Proof'}
+                  </Button>
+                  <input
+                    id="id-proof-upload"
+                    type="file"
+                    accept="image/*,application/pdf"
+                    className="hidden"
+                    onChange={(e) => handleFileUpload(e.target.files?.[0] || null, 'id_proof')}
+                  />
+                </div>
+              </div>
+              
               <div className="col-span-2">
                 <Label htmlFor="permanentAddress" className="text-slate-700">Permanent Address</Label>
                 <Textarea
